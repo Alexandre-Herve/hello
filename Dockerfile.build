@@ -1,0 +1,45 @@
+FROM bitwalker/alpine-erlang:19.3.4
+
+ENV HOME=/opt/app/ TERM=xterm
+
+# Install Elixir and basic build dependencies
+RUN \
+    echo "@edge http://nl.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
+    # echo "@repo http://nl.alpinelinux.org/alpine/v3.6/community" >> /etc/apk/repositories && \
+    apk update && \
+    apk --update upgrade && \
+    apk --no-cache --update add \
+      git make g++ \
+      nodejs python \
+      elixir@edge && \
+      # elixir@repo=1.4.2-r0 && \
+    rm -rf /var/cache/apk/*
+
+# Install Hex+Rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+WORKDIR /opt/app
+
+ENV MIX_ENV=prod
+
+# Cache elixir deps
+RUN mkdir config
+
+# Cache node deps
+# COPY assets/package.json ./assets
+# WORKDIR /opt/app/hello/assets
+# RUN npm install
+# WORKDIR /opt/app
+
+COPY config/* config/
+COPY mix.exs mix.lock ./
+
+# RUN ./node_modules/brunch/bin/brunch b -p && \
+    # mix phoenix.digest
+
+RUN mix do deps.get, deps.compile
+
+COPY . .
+
+RUN mix release --env=prod --verbose
